@@ -17,5 +17,5 @@ model = LazyCall(SwinTransformerV2)(
     ape=False,
     patch_norm=True,
     use_checkpoint=False,
-    pretrained_window_sizes=[0,0,0,0]
+    pretrained_window_sizes=[0, 0, 0, 0],
 )
