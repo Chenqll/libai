@@ -1,4 +1,6 @@
 from libai.config import LazyCall
+from libai.layers import LayerNorm
+from libai.optim.build import reduce_param_groups
 from .common.models.swinv2.swinv2_tiny_patch4_window8_256 import model
 from .common.models.graph import graph
 from .common.train import train
@@ -9,9 +11,9 @@ from flowvision import transforms
 from flowvision.data.mixup import Mixup
 from flowvision.transforms import InterpolationMode
 from flowvision.transforms.functional import str_to_interp_mode
-
 from flowvision.data import Mixup
 from flowvision.loss.cross_entropy import SoftTargetCrossEntropy
+import oneflow as flow
 
 CIFAR100_TRAIN_MEAN = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
 CIFAR100_TRAIN_STD = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
@@ -63,17 +65,49 @@ model.loss_func = LazyCall(SoftTargetCrossEntropy)()
 optim.lr = 5e-4
 optim.eps = 1e-8
 optim.weight_decay = 0.05
-optim.params.clip_grad_max_norm = None
-optim.params.clip_grad_norm_type = None
 
+
+def check_keywords_in_name(name, keywords=()):
+    isin = False
+    for keyword in keywords:
+        if keyword in name:
+            isin = True
+    return isin
+
+
+def set_weight_decay(model, skip_list=(), skip_keywords=()):
+    has_decay = []
+    no_decay = []
+
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue  # frozen weights
+        if (
+            len(param.shape) == 1
+            or name.endswith(".bias")
+            or (name in skip_list)
+            or check_keywords_in_name(name, skip_keywords)
+        ):
+            no_decay.append(param)
+            # print(f"{name} has no weight decay")
+        else:
+            has_decay.append(param)
+    return [{"params": has_decay}, {"params": no_decay, "weight_decay": 0.0}]
+
+
+optim.params = LazyCall(set_weight_decay)(
+    model=model,
+    skip_list=("absolute_pos_embed"),
+    skip_keywords=("cpb_mlp", "logit_scale", "relative_position_bias_table"),
+)
 # Refine train cfg for swin model
 train.train_micro_batch_size = 32
 train.num_accumulation_steps = 1
 train.test_micro_batch_size = 32
 train.train_epoch = 300
 train.warmup_ratio = 20 / 300
-train.evaluation.eval_period = 200
-train.log_period = 20
+train.evaluation.eval_period = 1562
+train.log_period = 10
 
 # Scheduler
 train.scheduler.warmup_factor = 5e-7
