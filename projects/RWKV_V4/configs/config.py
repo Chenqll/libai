@@ -53,9 +53,8 @@ dataloader.train = LazyCall(build_nlp_train_loader)(
     dataset=[
         LazyCall(RWKVDataset)(
             data="/home/zhangxiaoyu/shan/RWKV-LM/data/enwik8",
-            tokenizer=tokenization.tokenizer,
-            max_seq_length=128,
-            mode="train",
+            ctx_len=1024,
+            epoch_length_fixed=9996,
         ),
     ],
     num_workers=4,
