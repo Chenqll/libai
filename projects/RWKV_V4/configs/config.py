@@ -5,11 +5,11 @@ from libai.config import LazyCall
 from libai.tokenizer import GPT2Tokenizer
 
 # 配置 model
-from projects.RWKVV4.modeling.model import GPT 
+from projects.RWKV_V4.modeling.model import GPT 
 # 配置 dataloader `build_image_train_loader` 和 `build_image_test_loader` 是 LiBai 提供的用于创建图像数据的训练集和测试集 DataLoader 的两个函数
 from libai.data.build import build_nlp_test_loader, build_nlp_train_loader
 # 导入自定义的 dataset
-from projects.RWKVV4.dataset import RWKVDataset
+from projects.RWKV_V4.dataset import RWKVDataset
 
 graph = get_config("common/models/graph.py").graph
 train = get_config("common/train.py").train
@@ -17,7 +17,7 @@ optim = get_config("common/optim.py").optim
 
 # 配置两个file
 vocab_file = "/home/zhangxiaoyu/shan/RWKV-LM/RWKV-v4/vocab.json"
-merge_files = "./projects/PaLM/gpt_dataset/gpt2-merges.txt"
+merge_files = "/home/zhangxiaoyu/shan/RWKV-LM/libai/projects/RWKV_V4/dataset/gpt2-merges.txt"
 
 tokenization = get_config("common/data/gpt_dataset.py").tokenization
 tokenization.tokenizer.vocab_file = vocab_file
@@ -52,7 +52,7 @@ dataloader = OmegaConf.create()
 dataloader.train = LazyCall(build_nlp_train_loader)(
     dataset=[
         LazyCall(RWKVDataset)(
-            data_dir="/home/zhangxiaoyu/shan/RWKV-LM/data/enwik8",
+            data="/home/zhangxiaoyu/shan/RWKV-LM/data/enwik8",
             tokenizer=tokenization.tokenizer,
             max_seq_length=128,
             mode="train",
