@@ -39,7 +39,6 @@ model.cfg.num_attention_heads = 16
 model.cfg.hidden_size = 384
 model.cfg.ffn_hidden_size = 1536
 model.cfg.num_layers = 6
-model.cfg.max_seq_length = 1024
 
 # 训练过程
 train = get_config("common/train.py").train
@@ -50,6 +49,17 @@ train.dist.pipeline_num_layers = model.cfg.num_layers
 # 获得一个 DataLoader 的配置对象
 dataloader = OmegaConf.create()
 dataloader.train = LazyCall(build_nlp_train_loader)(
+    dataset=[
+        LazyCall(RWKVDataset)(
+            data="/home/zhangxiaoyu/shan/RWKV-LM/data/enwik8",
+            ctx_len=1024,
+            epoch_length_fixed=9996,
+        ),
+    ],
+    num_workers=4,
+)
+
+dataloader.test = LazyCall(build_nlp_train_loader)(
     dataset=[
         LazyCall(RWKVDataset)(
             data="/home/zhangxiaoyu/shan/RWKV-LM/data/enwik8",
