@@ -16,11 +16,6 @@ graph = get_config("common/models/graph.py").graph
 train = get_config("common/train.py").train
 optim = get_config("common/optim.py").optim
 
-optim = get_config("common/optim.py").optim
-model_cfg = get_config("common/models/gpt.py").cfg
-graph = get_config("common/models/graph.py").graph
-
-
 # 配置model
 model=LazyCall(GPT)(
     vocab_size=6064,
@@ -36,13 +31,12 @@ train.input_placement_device = "cpu"
 train.dist.pipeline_num_layers = 6
 
 datafile="/home/zhangxiaoyu/shan/RWKV-LM/data/enwik8"
-dataset=open(datafile, "r", encoding='utf-8').read()
 # 获得一个 DataLoader 的配置对象
 dataloader = OmegaConf.create()
 dataloader.train = LazyCall(build_nlp_train_loader)(
     dataset=[
         LazyCall(RWKVDataset)(
-            data=dataset,
+            data_dir=datafile,
             ctx_len=1024,
             epoch_length_fixed=9996,
         ),

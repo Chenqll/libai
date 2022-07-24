@@ -10,15 +10,13 @@ from oneflow.utils.data import Dataset
 import json
 import numpy as np
 import pdb
+from libai.data.structures import DistTensorData, Instance
 
 class RWKVDataset(Dataset):
-    def __init__(self, data, ctx_len, epoch_length_fixed):
+    def __init__(self, data_dir, ctx_len, epoch_length_fixed):
+        data=open(data_dir, "r", encoding='utf-8').read()
         print('building token list...', end=' ')
         unique = sorted(list(set(data)))
-        # print()
-        # for u in unique:
-        #     print(u, end=' ')
-        # print('\n\n')
         
         xx = 0
         xxObj = {}
@@ -45,9 +43,11 @@ class RWKVDataset(Dataset):
         i = np.random.randint(0, len(self.data) - (self.ctx_len + 1))
         chunk = self.data[i:i+self.ctx_len+1]
         dix = [self.stoi[s] for s in chunk]
+        x = flow.tensor(dix[:-1], dtype=flow.long)
+        y = flow.tensor(dix[1:], dtype=flow.long)
         return Instance(
-            x = flow.tensor(dix[:-1], dtype=flow.long),
-            y = flow.tensor(dix[1:], dtype=flow.long)
+            idx=DistTensorData(x),
+            targets=DistTensorData(y)
         )   
 
 class TOKENIZER():

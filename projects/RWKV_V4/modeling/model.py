@@ -8,6 +8,7 @@ from libai.config import configurable
 from libai.layers import LayerNorm, Linear, LMLogits, ParallelCrossEntropyLoss, VocabEmbedding
 from libai.models.utils import init_method_normal
 from libai.utils import distributed as dist
+import pdb
 logger = logging.getLogger(__name__)
 
 RWKV_HEAD_QK_DIM = 256
@@ -80,7 +81,7 @@ class RWKV_TimeMix(nn.Module):
         v = self.value(xv)
         r = self.receptance(xr)
 
-        rwkv = flow.sigmoid(r) * RUN_CUDA(B, T, C, self.time_decay, self.time_first, k, v)
+        rwkv = flow.sigmoid(r)
         rwkv = self.output(rwkv)
   
         return rwkv
@@ -175,10 +176,8 @@ class Block(nn.Module):
     def forward(self, x):
         if self.layer_id == 0:
             x = self.ln0(x)        
-        if self.layer_id == 0 and self.model_type == 'RWKV-ffnPre':
-            x = x + self.ffnPre(self.ln1(x))  # better in some cases
-        else:
-            x = x + self.att(self.ln1(x))
+
+        x = x + self.att(self.ln1(x))
         x = x + self.ffn(self.ln2(x))
         return x
 
@@ -254,7 +253,8 @@ class GPT(nn.Module):
         return optimizer
 
     def forward(self, idx, targets=None):
-        idx = idx.to(self.emb.weight.device)
+        idx=idx.to_global(placement=self.emb.weight.placement)
+        # idx = idx.placement(self.emb.weight.placement)
 
         self.step += 1
         B, T = idx.size()
@@ -269,7 +269,7 @@ class GPT(nn.Module):
             k = self.head_k(x)[:, :T, :]
             c = (q @ k.transpose(-2, -1)) * (1.0 / RWKV_HEAD_QK_DIM)
             c = c.masked_fill(self.copy_mask[:T, :T] == 0, 0)
-            c = c @ F.one_hot(idx, num_classes=self.vocab_size).half()
+            c = c @ F.one_hot(idx, num_classes=6064).half()
             x = self.head(x) + c
         else:
             x = self.head(x)
