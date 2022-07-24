@@ -14,18 +14,26 @@ RWKV_HEAD_QK_DIM = 256
 print(f'\nRWKV_HEAD_QK_DIM {RWKV_HEAD_QK_DIM}\n')
 
 class RWKV_TimeMix(nn.Module):
-    def __init__(self, config, layer_id):
+    def __init__(
+        self,
+        vocab_size,
+        ctx_len,
+        model_type,
+        n_layer,
+        n_embd,
+        layer_id
+    ):
        
         super().__init__()
         self.layer_id = layer_id
-        self.ctx_len = config.ctx_len
-        self.n_embd = config.n_embd
+        self.ctx_len = ctx_len
+        self.n_embd = n_embd
 
-        attn_sz = config.n_embd
+        attn_sz = n_embd
 
         with flow.no_grad(): # fancy init
-            ratio_0_to_1 = (layer_id / (config.n_layer - 1)) # 0 to 1
-            ratio_1_to_almost0 = (1.0 - (layer_id / config.n_layer)) # 1 to ~0
+            ratio_0_to_1 = (layer_id / (n_layer - 1)) # 0 to 1
+            ratio_1_to_almost0 = (1.0 - (layer_id / n_layer)) # 1 to ~0
             
             # fancy time_decay
             decay_speed = flow.ones(attn_sz)
@@ -39,20 +47,20 @@ class RWKV_TimeMix(nn.Module):
             self.time_first = nn.Parameter(flow.ones(attn_sz) * math.log(0.3) + zigzag)
             
             # fancy time_mix
-            x = flow.ones(1, 1, config.n_embd)
-            for i in range(config.n_embd):
-                x[0, 0, i] = i / config.n_embd
+            x = flow.ones(1, 1, n_embd)
+            for i in range(n_embd):
+                x[0, 0, i] = i / n_embd
             self.time_mix_k = nn.Parameter(flow.pow(x, ratio_1_to_almost0))
             self.time_mix_v = nn.Parameter(flow.pow(x, ratio_1_to_almost0) + 0.3 * ratio_0_to_1)
             self.time_mix_r = nn.Parameter(flow.pow(x, 0.5 * ratio_1_to_almost0))
             
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
 
-        self.key = Linear(config.n_embd, attn_sz, bias=False)
-        self.value = Linear(config.n_embd, attn_sz, bias=False)
-        self.receptance = Linear(config.n_embd, attn_sz, bias=False)
+        self.key = Linear(n_embd, attn_sz, bias=False)
+        self.value = Linear(n_embd, attn_sz, bias=False)
+        self.receptance = Linear(n_embd, attn_sz, bias=False)
 
-        self.output = Linear(attn_sz, config.n_embd, bias=False)
+        self.output = Linear(attn_sz, n_embd, bias=False)
 
         self.key.scale_init = 0
         self.receptance.scale_init = 0
@@ -79,7 +87,15 @@ class RWKV_TimeMix(nn.Module):
 
 
 class RWKV_ChannelMix(nn.Module):
-    def __init__(self, config, layer_id):
+    def __init__(
+        self,
+        vocab_size,
+        ctx_len,
+        model_type,
+        n_layer,
+        n_embd,
+        layer_id
+    ):
       
         super().__init__()
         self.layer_id = layer_id
@@ -87,19 +103,19 @@ class RWKV_ChannelMix(nn.Module):
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
 
         with flow.no_grad(): # fancy init of time_mix
-            ratio_1_to_almost0 = (1.0 - (layer_id / config.n_layer)) # 1 to ~0
+            ratio_1_to_almost0 = (1.0 - (layer_id / n_layer)) # 1 to ~0
 
-            x = flow.ones(1, 1, config.n_embd)
-            for i in range(config.n_embd):
-                x[0, 0, i] = i / config.n_embd
+            x = flow.ones(1, 1, n_embd)
+            for i in range(n_embd):
+                x[0, 0, i] = i / n_embd
 
             self.time_mix_k = nn.Parameter(flow.pow(x, ratio_1_to_almost0))
             self.time_mix_r = nn.Parameter(flow.pow(x, ratio_1_to_almost0))
 
-        hidden_sz = 4 * config.n_embd
-        self.key = Linear(config.n_embd, hidden_sz, bias=False)
-        self.receptance = Linear(config.n_embd, config.n_embd, bias=False)
-        self.value = Linear(hidden_sz, config.n_embd, bias=False)
+        hidden_sz = 4 * n_embd
+        self.key = Linear(n_embd, hidden_sz, bias=False)
+        self.receptance = Linear(n_embd, n_embd, bias=False)
+        self.value = Linear(hidden_sz, n_embd, bias=False)
 
         self.value.scale_init = 0
         self.receptance.scale_init = 0
@@ -130,28 +146,36 @@ class GPTConfig:
 
 
 class Block(nn.Module):
-    def __init__(self, config, layer_id):
+    def __init__(
+        self,
+        vocab_size,
+        ctx_len,
+        model_type,
+        n_layer,
+        n_embd,
+        layer_id
+    ):
         super().__init__()
-        self.config = config
+        
         self.layer_id = layer_id
 
-        self.ln1 = LayerNorm(config.n_embd)
-        self.ln2 = LayerNorm(config.n_embd)
+        self.ln1 = LayerNorm(n_embd)
+        self.ln2 = LayerNorm(n_embd)
 
         if self.layer_id == 0:
-            self.ln0 = LayerNorm(config.n_embd)
+            self.ln0 = LayerNorm(n_embd)
 
-        if self.layer_id == 0 and self.config.model_type == 'RWKV-ffnPre':
-            self.ffnPre = RWKV_ChannelMix(config, layer_id+1000)
-        else:
-            self.att = RWKV_TimeMix(config, layer_id)
+        # if self.layer_id == 0 and self.model_type == 'RWKV-ffnPre':
+        #     self.ffnPre = RWKV_ChannelMix(vocab_size, ctx_len,model_type, n_layer,n_embd, layer_id+1000)
+        # else:
+        self.att = RWKV_TimeMix(vocab_size, ctx_len,model_type, n_layer,n_embd, layer_id)
 
-        self.ffn = RWKV_ChannelMix(config, layer_id)
+        self.ffn = RWKV_ChannelMix(vocab_size, ctx_len,model_type, n_layer,n_embd, layer_id)
 
     def forward(self, x):
         if self.layer_id == 0:
             x = self.ln0(x)        
-        if self.layer_id == 0 and self.config.model_type == 'RWKV-ffnPre':
+        if self.layer_id == 0 and self.model_type == 'RWKV-ffnPre':
             x = x + self.ffnPre(self.ln1(x))  # better in some cases
         else:
             x = x + self.att(self.ln1(x))
@@ -160,33 +184,40 @@ class Block(nn.Module):
 
 
 class GPT(nn.Module):
-    def __init__(self, config):
+    def __init__(
+        self,
+        vocab_size,
+        ctx_len,
+        model_type,
+        n_layer,
+        n_embd
+    ):
 
         super().__init__()
         self.step = 0
-        self.config = config
+        
 
-        self.emb = VocabEmbedding(config.vocab_size, config.n_embd)
+        self.emb = VocabEmbedding(vocab_size, n_embd)
 
-        self.blocks = nn.Sequential(*[Block(config, i)
-                                    for i in range(config.n_layer)])
+        self.blocks = nn.Sequential(*[Block(vocab_size, ctx_len,model_type, n_layer,n_embd, i)
+                                    for i in range(n_layer)])
 
-        self.ln_out = LayerNorm(config.n_embd)
-        self.head = Linear(config.n_embd, config.vocab_size, bias=False)
+        self.ln_out = LayerNorm(n_embd)
+        self.head = Linear(n_embd, vocab_size, bias=False)
 
         if RWKV_HEAD_QK_DIM > 0:
-            self.head_q = Linear(config.n_embd, RWKV_HEAD_QK_DIM, bias=False)
+            self.head_q = Linear(n_embd, RWKV_HEAD_QK_DIM, bias=False)
             self.head_q.scale_init = 0
-            self.head_k = Linear(config.n_embd, RWKV_HEAD_QK_DIM, bias=False)
+            self.head_k = Linear(n_embd, RWKV_HEAD_QK_DIM, bias=False)
             self.head_k.scale_init = 0.1
             self.register_buffer("copy_mask", flow.tril(
-                flow.ones(config.ctx_len, config.ctx_len)))
+                flow.ones(ctx_len, ctx_len)))
 
-        self.ctx_len = config.ctx_len
+        self.ctx_len = ctx_len
 
         try:
             if os.environ['RWKV_LOAD_MODEL'] == str(False):
-                RWKV_Init(self, config) 
+                RWKV_Init(self, vocab_size, ctx_len,model_type, n_layer,n_embd) 
         except:
             pass
 
@@ -238,7 +269,7 @@ class GPT(nn.Module):
             k = self.head_k(x)[:, :T, :]
             c = (q @ k.transpose(-2, -1)) * (1.0 / RWKV_HEAD_QK_DIM)
             c = c.masked_fill(self.copy_mask[:T, :T] == 0, 0)
-            c = c @ F.one_hot(idx, num_classes=self.config.vocab_size).half()
+            c = c @ F.one_hot(idx, num_classes=self.vocab_size).half()
             x = self.head(x) + c
         else:
             x = self.head(x)

@@ -8,6 +8,7 @@ import oneflow as flow
 from filelock import FileLock
 from oneflow.utils.data import Dataset
 import json
+import numpy as np
 
 class RWKVDataset(Dataset):
     def __init__(self, data, ctx_len, epoch_length_fixed):

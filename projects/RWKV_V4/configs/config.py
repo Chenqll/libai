@@ -22,11 +22,13 @@ graph = get_config("common/models/graph.py").graph
 
 
 # 配置model
-model = LazyCall(GPT(GPTConfig(6064, 1024, model_type='RWKV',
-                        n_layer=6, n_embd=512)))
-
-
-
+model=LazyCall(GPT)(
+    vocab_size=6064,
+    ctx_len=1024,
+    model_type='RWKV',
+    n_layer=6,
+    n_embd=512
+)
 
 # 训练过程
 train = get_config("common/train.py").train
