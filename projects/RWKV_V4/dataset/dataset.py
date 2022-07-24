@@ -9,6 +9,7 @@ from filelock import FileLock
 from oneflow.utils.data import Dataset
 import json
 import numpy as np
+import pdb
 
 class RWKVDataset(Dataset):
     def __init__(self, data, ctx_len, epoch_length_fixed):
@@ -18,7 +19,7 @@ class RWKVDataset(Dataset):
         # for u in unique:
         #     print(u, end=' ')
         # print('\n\n')
-
+        
         xx = 0
         xxObj = {}
         for u in unique:
@@ -44,10 +45,10 @@ class RWKVDataset(Dataset):
         i = np.random.randint(0, len(self.data) - (self.ctx_len + 1))
         chunk = self.data[i:i+self.ctx_len+1]
         dix = [self.stoi[s] for s in chunk]
-        x = torch.tensor(dix[:-1], dtype=torch.long)
-        y = torch.tensor(dix[1:], dtype=torch.long)
-        return x, y
-
+        return Instance(
+            x = flow.tensor(dix[:-1], dtype=flow.long),
+            y = flow.tensor(dix[1:], dtype=flow.long)
+        )   
 
 class TOKENIZER():
     def __init__(self, WORD_NAME, UNKNOWN_CHAR='\ue083'):
@@ -62,7 +63,7 @@ class TOKENIZER():
         self.UNKNOWN_CHAR = self.stoi[UNKNOWN_CHAR]
 
     def refine_context(self, context):
-        pdb.set_trace()
+  
         context = context.strip().split('\n')
         for c in range(len(context)):
             context[c] = context[c].strip().strip('\u3000').strip('\r')
@@ -78,14 +79,14 @@ class TOKENIZER():
 
         lastChar = int(x[-1])
 
-        probs = F.softmax(torch.tensor(out), dim=-1)
+        probs = F.softmax(flow.tensor(out), dim=-1)
 
         if self.itos[lastChar] == '\n':
             top_p = top_p_newline
         else:
             top_p = top_p_usual
 
-        sorted_probs, s_index = torch.sort(probs, descending=True)
+        sorted_probs, s_index = flow.sort(probs, descending=True)
 
         # for j in range(30):
         #     pp = sorted_probs[j].item()
@@ -95,7 +96,7 @@ class TOKENIZER():
         #     print(f'{math.floor(pp*100):>3.0f}{ss}', end='')
         # print('')
 
-        cumulative_probs = torch.cumsum(sorted_probs, dim=-1).numpy()
+        cumulative_probs = flow.cumsum(sorted_probs, dim=-1).numpy()
         cutoff = float(sorted_probs[np.argmax(cumulative_probs > top_p)])
 
         probs[probs < cutoff] = 0
@@ -104,7 +105,7 @@ class TOKENIZER():
         if temperature != 1.0:
             probs = probs.pow(1.0 / temperature)
 
-        return torch.multinomial(probs, num_samples=1)[0]
+        return flow.multinomial(probs, num_samples=1)[0]
 
 
 def to_float(x):
@@ -114,5 +115,5 @@ def to_float(x):
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    flow.manual_seed(seed)
+    flow.cuda.manual_seed_all(seed)

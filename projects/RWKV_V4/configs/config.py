@@ -35,13 +35,14 @@ train = get_config("common/train.py").train
 train.input_placement_device = "cpu"
 train.dist.pipeline_num_layers = 6
 
-
+datafile="/home/zhangxiaoyu/shan/RWKV-LM/data/enwik8"
+dataset=open(datafile, "r", encoding='utf-8').read()
 # 获得一个 DataLoader 的配置对象
 dataloader = OmegaConf.create()
 dataloader.train = LazyCall(build_nlp_train_loader)(
     dataset=[
         LazyCall(RWKVDataset)(
-            data="/home/zhangxiaoyu/shan/RWKV-LM/data/enwik8",
+            data=dataset,
             ctx_len=1024,
             epoch_length_fixed=9996,
         ),
