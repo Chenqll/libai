@@ -44,4 +44,4 @@ dataloader.train = LazyCall(build_nlp_train_loader)(
     num_workers=4,
 )
 
-
+# train.dist.tensor_parallel_size = 4  # 并行度为 4 的模型并行

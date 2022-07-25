@@ -5,7 +5,7 @@ from oneflow import einsum, nn
 import math, os
 import logging
 from libai.config import configurable
-from libai.layers import LayerNorm, Linear, LMLogits, ParallelCrossEntropyLoss, VocabEmbedding
+from libai.layers import LayerNorm, Linear, LMLogits, VocabEmbedding
 from libai.models.utils import init_method_normal
 from libai.utils import distributed as dist
 import pdb
@@ -268,14 +268,26 @@ class GPT(nn.Module):
             q = self.head_q(x)[:, :T, :]
             k = self.head_k(x)[:, :T, :]
             c = (q @ k.transpose(-2, -1)) * (1.0 / RWKV_HEAD_QK_DIM)
-            c = c.masked_fill(self.copy_mask[:T, :T] == 0, 0)
+            # c = c.masked_fill(self.copy_mask[:T, :T] == 0, 0)
+            # pdb.set_trace()
+            # (Pdb) p c
+            # tensor(..., placement=oneflow.placement(type="cuda", ranks=[0]), sbp=(oneflow.sbp.broadcast,), is_lazy='True',
+            #        size=(32, 1024, 1024), dtype=oneflow.float32)
+            # (Pdb) 
+            # tensor(..., placement=oneflow.placement(type="cuda", ranks=[0]), sbp=(oneflow.sbp.broadcast,), is_lazy='True',
+            #        size=(32, 1024, 1024), dtype=oneflow.float32)
+            # (Pdb) 
+            # tensor(..., placement=oneflow.placement(type="cuda", ranks=[0]), sbp=(oneflow.sbp.broadcast,), is_lazy='True',
+            #        size=(32, 1024, 1024), dtype=oneflow.float32)
+            c = c.half()
             c = c @ F.one_hot(idx, num_classes=6064).half()
+            # https://github.com/Chenqll/libai/pull/1#issuecomment-1193328369
             x = self.head(x) + c
         else:
-            x = self.head(x)
+            x = self.head(x)    
 
         loss = None
         if targets is not None:
-            loss = F.ParallelCrossEntropyLoss(x.view(-1, x.size(-1)), targets.to(x.device).view(-1))
+            loss = F.cross_entropy(x.view(-1, x.size(-1)), targets.to_global(placement=x.placement).view(-1))
 
-        return x, loss
+        return {"loss": loss}
