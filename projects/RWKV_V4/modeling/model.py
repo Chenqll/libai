@@ -248,22 +248,30 @@ class GPT(nn.Module):
                         for pn in sorted(list(no_decay))], "weight_decay": 0.0},
         ]
 
-        optimizer = Fflow.optim.Optimizer
+        optimizer = flow.optim.AdamW(
+                        get_default_optimizer_params(model),
+                        lr=8e-4
+                    )
 
         return optimizer
 
     def forward(self, idx, targets=None):
+        # print(idx.shape)
+ 
+     
         idx=idx.to_global(placement=self.emb.weight.placement)
         # idx = idx.placement(self.emb.weight.placement)
 
         self.step += 1
         B, T = idx.size()
         assert T <= self.ctx_len, "Cannot forward, because len(input) > model ctx_len."
+        
 
         x = self.emb(idx)
         x = self.blocks(x)
         x = self.ln_out(x)
-
+        
+        
         if RWKV_HEAD_QK_DIM > 0:
             q = self.head_q(x)[:, :T, :]
             k = self.head_k(x)[:, :T, :]
@@ -279,15 +287,15 @@ class GPT(nn.Module):
             # (Pdb) 
             # tensor(..., placement=oneflow.placement(type="cuda", ranks=[0]), sbp=(oneflow.sbp.broadcast,), is_lazy='True',
             #        size=(32, 1024, 1024), dtype=oneflow.float32)
-            c = c.half()
-            c = c @ F.one_hot(idx, num_classes=6064).half()
+            c = c.float()
+            c = c @ F.one_hot(idx, num_classes=6064).float()
             # https://github.com/Chenqll/libai/pull/1#issuecomment-1193328369
             x = self.head(x) + c
         else:
             x = self.head(x)    
 
-        loss = None
-        if targets is not None:
+        if self.training and targets is not None:
             loss = F.cross_entropy(x.view(-1, x.size(-1)), targets.to_global(placement=x.placement).view(-1))
-
-        return {"loss": loss}
+            return {"loss": loss}
+        else:
+            return {"x": x}
