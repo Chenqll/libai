@@ -1,0 +1,220 @@
+[08/01 13:24:57] libai INFO: Rank of current process: 0. World size: 1
+[08/01 13:24:57] libai INFO: Command line arguments: Namespace(config_file='projects/RWKV_V4/configs/config_test.py', eval_only=False, fast_dev_run=False, opts=[], resume=False)
+[08/01 13:24:57] libai INFO: Contents of args.config_file=projects/RWKV_V4/configs/config_test.py:
+[38;5;197mfrom[39m[38;5;15m [39m[38;5;15momegaconf[39m[38;5;15m [39m[38;5;197mimport[39m[38;5;15m [39m[38;5;15mOmegaConf[39m
+
+[38;5;197mfrom[39m[38;5;15m [39m[38;5;15mlibai[39m[38;5;15m.[39m[38;5;15mconfig[39m[38;5;15m [39m[38;5;197mimport[39m[38;5;15m [39m[38;5;15mget_config[39m
+[38;5;197mfrom[39m[38;5;15m [39m[38;5;15mlibai[39m[38;5;15m.[39m[38;5;15mconfig[39m[38;5;15m [39m[38;5;197mimport[39m[38;5;15m [39m[38;5;15mLazyCall[39m
+[38;5;197mfrom[39m[38;5;15m [39m[38;5;15mlibai[39m[38;5;15m.[39m[38;5;15mtokenizer[39m[38;5;15m [39m[38;5;197mimport[39m[38;5;15m [39m[38;5;15mGPT2Tokenizer[39m
+[38;5;197mimport[39m[38;5;15m [39m[38;5;15moneflow[39m[38;5;15m [39m[38;5;81mas[39m[38;5;15m [39m[38;5;15mflow[39m
+
+[38;5;242m# 配置 model[39m
+[38;5;197mfrom[39m[38;5;15m [39m[38;5;15mprojects[39m[38;5;15m.[39m[38;5;15mRWKV_V4[39m[38;5;15m.[39m[38;5;15mmodeling[39m[38;5;15m.[39m[38;5;15mmodel[39m[38;5;15m [39m[38;5;197mimport[39m[38;5;15m [39m[38;5;15mGPT[39m[38;5;15m [39m[38;5;15m,[39m[38;5;15mGPTConfig[39m
+[38;5;242m# 配置 dataloader `build_image_train_loader` 和 `build_image_test_loader` 是 LiBai 提供的用于创建图像数据的训练集和测试集 DataLoader 的两个函数[39m
+[38;5;197mfrom[39m[38;5;15m [39m[38;5;15mlibai[39m[38;5;15m.[39m[38;5;15mdata[39m[38;5;15m.[39m[38;5;15mbuild[39m[38;5;15m [39m[38;5;197mimport[39m[38;5;15m [39m[38;5;15mbuild_nlp_test_loader[39m[38;5;15m,[39m[38;5;15m [39m[38;5;15mbuild_nlp_train_loader[39m
+[38;5;242m# 导入自定义的 dataset[39m
+[38;5;197mfrom[39m[38;5;15m [39m[38;5;15mprojects[39m[38;5;15m.[39m[38;5;15mRWKV_V4[39m[38;5;15m.[39m[38;5;15mdataset[39m[38;5;15m [39m[38;5;197mimport[39m[38;5;15m [39m[38;5;15mRWKVDataset[39m
+[38;5;197mfrom[39m[38;5;15m [39m[38;5;15mlibai[39m[38;5;15m.[39m[38;5;15moptim[39m[38;5;15m [39m[38;5;197mimport[39m[38;5;15m [39m[38;5;15mget_default_optimizer_params[39m
+[38;5;197mfrom[39m[38;5;15m [39m[38;5;15mprojects[39m[38;5;15m.[39m[38;5;15mRWKV_V4[39m[38;5;15m.[39m[38;5;15mutils[39m[38;5;15m.[39m[38;5;15mconfig_optimizer[39m[38;5;15m [39m[38;5;197mimport[39m[38;5;15m [39m[38;5;15mget_RWKV_V4_config_optim[39m
+
+[38;5;242m# Path to the weight for fine-tune[39m
+[38;5;242m# finetune = OmegaConf.create()[39m
+[38;5;242m# finetune.enable = True  # only load weight if enable is True[39m
+[38;5;242m# finetune.weight_style = ([39m
+[38;5;242m#     "oneflow"  # Set "oneflow" for loading oneflow weights, set "pytorch" for loading torch weights[39m
+[38;5;242m# )[39m
+[38;5;242m# finetune.path = "/path/to/pretrained_mae_weight"[39m
+
+[38;5;15mtest[39m[38;5;197m=[39m[38;5;15mOmegaConf[39m[38;5;197m.[39m[38;5;15mcreate[39m[38;5;15m([39m[38;5;15m)[39m
+[38;5;15mtest[39m[38;5;197m.[39m[38;5;15menable[39m[38;5;197m=[39m[38;5;81mTrue[39m
+[38;5;15mtest[39m[38;5;197m.[39m[38;5;15mweight_style[39m[38;5;197m=[39m[38;5;15m([39m
+[38;5;15m    [39m[38;5;186m"[39m[38;5;186mpytorch[39m[38;5;186m"[39m
+[38;5;15m)[39m
+[38;5;15mtest[39m[38;5;197m.[39m[38;5;15mpath[39m[38;5;197m=[39m[38;5;186m"[39m[38;5;186m/home/chenqiaoling/RWKV-LM/RWKV-v4/trained-1.pth[39m[38;5;186m"[39m
+
+[38;5;15mgraph[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;15mget_config[39m[38;5;15m([39m[38;5;186m"[39m[38;5;186mcommon/models/graph.py[39m[38;5;186m"[39m[38;5;15m)[39m[38;5;197m.[39m[38;5;15mgraph[39m
+
+[38;5;15mgraph[39m[38;5;197m.[39m[38;5;15menabled[39m[38;5;197m=[39m[38;5;81mFalse[39m
+[38;5;15mtrain[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;15mget_config[39m[38;5;15m([39m[38;5;186m"[39m[38;5;186mcommon/train.py[39m[38;5;186m"[39m[38;5;15m)[39m[38;5;197m.[39m[38;5;15mtrain[39m
+
+[38;5;242m# optim = get_config("common/optim.py").optim[39m
+[38;5;15moptim[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;15mLazyCall[39m[38;5;15m([39m[38;5;15mflow[39m[38;5;197m.[39m[38;5;15moptim[39m[38;5;197m.[39m[38;5;15mAdam[39m[38;5;15m)[39m[38;5;15m([39m
+[38;5;15m    [39m[38;5;15mparams[39m[38;5;197m=[39m[38;5;15mLazyCall[39m[38;5;15m([39m[38;5;15mget_RWKV_V4_config_optim[39m[38;5;15m)[39m[38;5;15m([39m[38;5;15m)[39m[38;5;15m,[39m
+[38;5;15m    [39m[38;5;15mlr[39m[38;5;197m=[39m[38;5;141m8e-4[39m[38;5;15m,[39m
+[38;5;15m)[39m
+
+
+[38;5;242m# 配置model[39m
+[38;5;15mmodel[39m[38;5;197m=[39m[38;5;15mLazyCall[39m[38;5;15m([39m[38;5;15mGPT[39m[38;5;15m)[39m[38;5;15m([39m
+[38;5;15m    [39m[38;5;15mvocab_size[39m[38;5;197m=[39m[38;5;141m6064[39m[38;5;15m,[39m
+[38;5;15m    [39m[38;5;15mctx_len[39m[38;5;197m=[39m[38;5;141m1024[39m[38;5;15m,[39m
+[38;5;15m    [39m[38;5;15mmodel_type[39m[38;5;197m=[39m[38;5;186m'[39m[38;5;186mRWKV[39m[38;5;186m'[39m[38;5;15m,[39m
+[38;5;15m    [39m[38;5;15mn_layer[39m[38;5;197m=[39m[38;5;141m6[39m[38;5;15m,[39m
+[38;5;15m    [39m[38;5;15mn_embd[39m[38;5;197m=[39m[38;5;141m512[39m
+[38;5;15m)[39m
+
+[38;5;242m# 训练过程[39m
+[38;5;15mtrain[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;15mget_config[39m[38;5;15m([39m[38;5;186m"[39m[38;5;186mcommon/train.py[39m[38;5;186m"[39m[38;5;15m)[39m[38;5;197m.[39m[38;5;15mtrain[39m
+[38;5;15mtrain[39m[38;5;197m.[39m[38;5;15minput_placement_device[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;186m"[39m[38;5;186mcpu[39m[38;5;186m"[39m
+[38;5;15mtrain[39m[38;5;197m.[39m[38;5;15mdist[39m[38;5;197m.[39m[38;5;15mpipeline_num_layers[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;141m6[39m
+[38;5;15mtrain[39m[38;5;197m.[39m[38;5;15mtrain_micro_batch_size[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;141m12[39m
+[38;5;15mtrain[39m[38;5;197m.[39m[38;5;15mscheduler[39m[38;5;197m=[39m[38;5;15mLazyCall[39m[38;5;15m([39m[38;5;15mflow[39m[38;5;197m.[39m[38;5;15moptim[39m[38;5;197m.[39m[38;5;15mlr_scheduler[39m[38;5;197m.[39m[38;5;15mStepLR[39m[38;5;15m)[39m[38;5;15m([39m
+[38;5;15m        [39m[38;5;15mstep_size[39m[38;5;197m=[39m[38;5;141m1000[39m[38;5;15m,[39m[38;5;15m [39m
+[38;5;15m        [39m[38;5;15mgamma[39m[38;5;197m=[39m[38;5;141m1.0[39m
+[38;5;15m)[39m[38;5;15m [39m
+
+[38;5;15mdatafile[39m[38;5;197m=[39m[38;5;186m"[39m[38;5;186m/home/chenqiaoling/RWKV-LM/data/enwik8[39m[38;5;186m"[39m
+[38;5;242m# 获得一个 DataLoader 的配置对象[39m
+[38;5;15mdataloader[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;15mOmegaConf[39m[38;5;197m.[39m[38;5;15mcreate[39m[38;5;15m([39m[38;5;15m)[39m
+[38;5;15mdataloader[39m[38;5;197m.[39m[38;5;15mtrain[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;15mLazyCall[39m[38;5;15m([39m[38;5;15mbuild_nlp_train_loader[39m[38;5;15m)[39m[38;5;15m([39m
+[38;5;15m    [39m[38;5;15mdataset[39m[38;5;197m=[39m[38;5;15m[[39m
+[38;5;15m        [39m[38;5;15mLazyCall[39m[38;5;15m([39m[38;5;15mRWKVDataset[39m[38;5;15m)[39m[38;5;15m([39m
+[38;5;15m            [39m[38;5;15mdata_dir[39m[38;5;197m=[39m[38;5;15mdatafile[39m[38;5;15m,[39m
+[38;5;15m            [39m[38;5;15mctx_len[39m[38;5;197m=[39m[38;5;141m1024[39m[38;5;15m,[39m
+[38;5;15m            [39m[38;5;15mepoch_length_fixed[39m[38;5;197m=[39m[38;5;141m9996[39m[38;5;15m,[39m
+[38;5;15m        [39m[38;5;15m)[39m[38;5;15m,[39m
+[38;5;15m    [39m[38;5;15m][39m[38;5;15m,[39m
+[38;5;15m    [39m[38;5;15mnum_workers[39m[38;5;197m=[39m[38;5;141m4[39m[38;5;15m,[39m
+[38;5;15m)[39m
+
+[38;5;15mtrain[39m[38;5;197m.[39m[38;5;15mtrain_iter[39m[38;5;197m=[39m[38;5;141m0[39m
+[38;5;15mtrain[39m[38;5;197m.[39m[38;5;15mtrain_epoch[39m[38;5;197m=[39m[38;5;141m1[39m
+
+[38;5;15mtrain[39m[38;5;197m.[39m[38;5;15moutput_dir[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;186m"[39m[38;5;186moutput/rwkv_output_loss_compare[39m[38;5;186m"[39m
+[38;5;242m# train.load_weight = "/home/chenqiaoling/RWKV-LM/libai/projects/RWKV_V4/model/output_model/" # 采用同一个model进行初始化[39m
+[38;5;15mtrain[39m[38;5;197m.[39m[38;5;15mrdma_enabled[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;81mFalse[39m
+
+[38;5;242m# model.cfg.hidden_dropout_prob= 0.0 # 关闭所有的dropout[39m
+[38;5;242m# model.cfg.attention_probs_dropout_prob= 0.0[39m
+[38;5;242m# model.cfg.bias_dropout_fusion= False[39m
+
+[38;5;242m# train.dist.pipeline_parallel_size=2[39m
+[38;5;15mtrain[39m[38;5;197m.[39m[38;5;15mevaluation[39m[38;5;197m.[39m[38;5;15menabled[39m[38;5;15m [39m[38;5;197m=[39m[38;5;15m [39m[38;5;81mFalse[39m
+
+
+[38;5;242m# train.dist.tensor_parallel_size = 4  # 并行度为 4 的模型并行[39m
+[38;5;242m# train.dist.tensor_parallel_size = 4  # 并行度为 4 的模型并行[39m
+
+[08/01 13:24:58] libai INFO: Full config saved to output/rwkv_output_loss_compare/config.yaml
+[08/01 13:24:58] lb.engine.default INFO: > compiling dataset index builder ...
+[08/01 13:24:58] lb.engine.default INFO: >>> done with dataset index builder. Compilation time: 0.107 seconds
+[08/01 13:24:58] lb.engine.default INFO: >>> done with compiling. Compilation time: 0.108 seconds
+[08/01 13:24:58] lb.engine.default INFO: Prepare training, validating, testing set
+[08/01 13:25:03] lb.engine.default INFO: Auto-scaling the config to train.train_iter=833, train.warmup_iter=0
+[08/01 13:25:07] lb.engine.default INFO: Model:
+GPT(
+  (emb): VocabEmbedding(num_embeddings=6064, embedding_dim=512)
+  (blocks): Sequential(
+    (0): Block(
+      (ln1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (ln2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (ln0): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (att): RWKV_TimeMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (output): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+      )
+      (ffn): RWKV_ChannelMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=2048, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=2048, out_features=512, bias=False, parallel=data)
+      )
+    )
+    (1): Block(
+      (ln1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (ln2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (att): RWKV_TimeMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (output): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+      )
+      (ffn): RWKV_ChannelMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=2048, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=2048, out_features=512, bias=False, parallel=data)
+      )
+    )
+    (2): Block(
+      (ln1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (ln2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (att): RWKV_TimeMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (output): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+      )
+      (ffn): RWKV_ChannelMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=2048, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=2048, out_features=512, bias=False, parallel=data)
+      )
+    )
+    (3): Block(
+      (ln1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (ln2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (att): RWKV_TimeMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (output): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+      )
+      (ffn): RWKV_ChannelMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=2048, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=2048, out_features=512, bias=False, parallel=data)
+      )
+    )
+    (4): Block(
+      (ln1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (ln2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (att): RWKV_TimeMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (output): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+      )
+      (ffn): RWKV_ChannelMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=2048, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=2048, out_features=512, bias=False, parallel=data)
+      )
+    )
+    (5): Block(
+      (ln1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (ln2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (att): RWKV_TimeMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (output): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+      )
+      (ffn): RWKV_ChannelMix(
+        (time_shift): ZeroPad2d()
+        (key): Linear1D(in_features=512, out_features=2048, bias=False, parallel=data)
+        (receptance): Linear1D(in_features=512, out_features=512, bias=False, parallel=data)
+        (value): Linear1D(in_features=2048, out_features=512, bias=False, parallel=data)
+      )
+    )
+  )
+  (ln_out): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+  (head): Linear1D(in_features=512, out_features=6064, bias=False, parallel=data)
+  (head_q): Linear1D(in_features=512, out_features=256, bias=False, parallel=data)
+  (head_k): Linear1D(in_features=512, out_features=256, bias=False, parallel=data)
+)
+[08/01 13:25:07] lb.__main__ INFO: Loading pretrained weight for test /home/chenqiaoling/RWKV-LM/RWKV-v4/trained-1.pth
+[08/01 13:25:08] lb.engine.trainer INFO: Starting training from iteration 0
+[08/01 13:25:14] lb.utils.events INFO:  eta: 0:03:35  iteration: 19/833  consumed_samples: 240  total_loss: 0.08754  time: 0.2671 s/iter  data_time: 0.0012 s/iter total_throughput: 44.93 samples/s lr: 8.00e-04  
+[08/01 13:25:19] lb.utils.events INFO:  eta: 0:03:30  iteration: 39/833  consumed_samples: 480  total_loss: 0.0801  time: 0.2661 s/iter  data_time: 0.0009 s/iter total_throughput: 45.09 samples/s lr: 8.00e-04  
