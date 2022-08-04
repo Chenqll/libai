@@ -11,16 +11,8 @@ from projects.RWKV_V4.modeling.model import GPT ,GPTConfig
 from libai.data.build import build_nlp_test_loader, build_nlp_train_loader
 # 导入自定义的 dataset
 from projects.RWKV_V4.dataset import RWKVDataset
-from libai.optim import get_default_optimizer_params
 from projects.RWKV_V4.utils.config_optimizer import get_RWKV_V4_config_optim
 
-# Path to the weight for fine-tune
-# finetune = OmegaConf.create()
-# finetune.enable = True  # only load weight if enable is True
-# finetune.weight_style = (
-#     "oneflow"  # Set "oneflow" for loading oneflow weights, set "pytorch" for loading torch weights
-# )
-# finetune.path = "/path/to/pretrained_mae_weight"
 
 test=OmegaConf.create()
 test.enable=True
@@ -31,8 +23,10 @@ test.path="/home/chenqiaoling/RWKV-LM/RWKV-v4/trained-1.pth"
 
 graph = get_config("common/models/graph.py").graph
 
-graph.enabled=False
-train = get_config("common/train.py").train
+graph.enabled=True
+
+
+
 
 # optim = get_config("common/optim.py").optim
 optim = LazyCall(flow.optim.Adam)(
@@ -54,11 +48,12 @@ model=LazyCall(GPT)(
 train = get_config("common/train.py").train
 train.input_placement_device = "cpu"
 train.dist.pipeline_num_layers = 6
-train.train_micro_batch_size = 12
+train.train_micro_batch_size = 4
 train.scheduler=LazyCall(flow.optim.lr_scheduler.StepLR)(
         step_size=1000, 
         gamma=1.0
 ) 
+train.amp.enabled=False
 
 datafile="/home/chenqiaoling/RWKV-LM/data/enwik8"
 # 获得一个 DataLoader 的配置对象
@@ -89,5 +84,5 @@ train.rdma_enabled = False
 train.evaluation.enabled = False
 
 
-# train.dist.tensor_parallel_size = 4  # 并行度为 4 的模型并行
+train.dist.tensor_parallel_size = 2  # 并行度为 4 的模型并行
 # train.dist.tensor_parallel_size = 4  # 并行度为 4 的模型并行

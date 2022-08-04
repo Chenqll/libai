@@ -1,4 +1,3 @@
-import pdb
 def get_RWKV_V4_config_optim(model):
     no_decay = set()
 
@@ -12,5 +11,5 @@ def get_RWKV_V4_config_optim(model):
         {"params": [param_dict[pn]
                     for pn in sorted(list(no_decay))], "weight_decay": 0.0},
     ]
-    # pdb.set_trace()
+   
     return optim_groups

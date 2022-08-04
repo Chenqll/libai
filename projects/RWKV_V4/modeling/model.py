@@ -57,11 +57,11 @@ class RWKV_TimeMix(nn.Module):
             
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
 
-        self.key = Linear(n_embd, attn_sz, bias=False)
-        self.value = Linear(n_embd, attn_sz, bias=False)
-        self.receptance = Linear(n_embd, attn_sz, bias=False)
+        self.key = Linear(n_embd, attn_sz, bias=False,parallel = "col")
+        self.value = Linear(n_embd, attn_sz, bias=False,parallel = "col")
+        self.receptance = Linear(n_embd, attn_sz, bias=False,parallel = "col")
 
-        self.output = Linear(attn_sz, n_embd, bias=False)
+        self.output = Linear(attn_sz, n_embd, bias=False,parallel = "row")
 
         self.key.scale_init = 0
         self.receptance.scale_init = 0
@@ -114,9 +114,9 @@ class RWKV_ChannelMix(nn.Module):
             self.time_mix_r = nn.Parameter(flow.pow(x, ratio_1_to_almost0))
 
         hidden_sz = 4 * n_embd
-        self.key = Linear(n_embd, hidden_sz, bias=False)
-        self.receptance = Linear(n_embd, n_embd, bias=False)
-        self.value = Linear(hidden_sz, n_embd, bias=False)
+        self.key = Linear(n_embd, hidden_sz, bias=False,parallel = "col")
+        self.receptance = Linear(n_embd, n_embd, bias=False,parallel = "col")
+        self.value = Linear(hidden_sz, n_embd, bias=False,parallel = "row")
 
         self.value.scale_init = 0
         self.receptance.scale_init = 0
@@ -202,12 +202,12 @@ class GPT(nn.Module):
                                     for i in range(n_layer)])
 
         self.ln_out = LayerNorm(n_embd)
-        self.head = Linear(n_embd, vocab_size, bias=False)
+        self.head = Linear(n_embd, vocab_size, bias=False,parallel = "row")
 
         if RWKV_HEAD_QK_DIM > 0:
-            self.head_q = Linear(n_embd, RWKV_HEAD_QK_DIM, bias=False)
+            self.head_q = Linear(n_embd, RWKV_HEAD_QK_DIM, bias=False,parallel = "col")
             self.head_q.scale_init = 0
-            self.head_k = Linear(n_embd, RWKV_HEAD_QK_DIM, bias=False)
+            self.head_k = Linear(n_embd, RWKV_HEAD_QK_DIM, bias=False,parallel = "col")
             self.head_k.scale_init = 0.1
             self.register_buffer("copy_mask", flow.tril(
                 flow.ones(ctx_len, ctx_len)))

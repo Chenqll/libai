@@ -98,11 +98,11 @@ if __name__ == "__main__":
  
     draw_and_save(
         {
-            "title": "libai_rwkv_loss_curve_bench_vs_rwkv_torch",
-            "save_path": add_pth(".", "bench_vs_main_dp.png"),
+            "title": "libai_rwkv_loss_curve_bench_vs_rwkv_torch --- ADAM",
+            "save_path": add_pth(".", "bench_vs_main_dp_2.png"),
             "txts": [
                 "/home/chenqiaoling/RWKV-LM/libai/projects/RWKV_V4/rwkv_libai.txt",
-                "/home/chenqiaoling/RWKV-LM/libai/projects/RWKV_V4/rwkv_torch.txt",
+                "/home/chenqiaoling/RWKV-LM/libai/projects/RWKV_V4/rwkv_libai2.txt",
             ],
             "names": [
                 "rwkv_libai",
